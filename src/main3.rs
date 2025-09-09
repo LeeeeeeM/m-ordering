@@ -38,10 +38,10 @@ fn main() {
             let new_value = 100;
             match counter.compare_exchange(initial_value, new_value, Ordering::Relaxed, Ordering::Relaxed) {
                 Ok(_) => {
-                    println!("CAS 成功！从 {} 更新到 {} (ABA问题!)", initial_value, new_value);
+                    println!("CAS 成功！从 {} 更新到 {} (可能是ABA问题！)", initial_value, new_value);
                 }
                 Err(actual) => {
-                    println!("CAS 失败！期望: {}, 实际: {} (正常情况)", initial_value, actual);
+                    println!("CAS 失败！期望: {}, 实际: {} (检测到并发修改，这是好的)", initial_value, actual);
                 }
             }
         });

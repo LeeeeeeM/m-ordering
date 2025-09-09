@@ -144,8 +144,22 @@ fn main() {
                             current.value, new_value, new_versioned.version);
                 }
                 Err(actual) => {
-                    println!("线程2: CAS 失败！期望值: {}, 版本号: {}, 实际值: {}, 版本号: {} (ABA问题被检测到!)", 
-                            current.value, current.version, actual.value, actual.version);
+                    // 正确判断失败原因
+                    if actual.value == current.value && actual.version > current.version {
+                        // 值相同但版本号增加 = 真正的 ABA 问题
+                        println!("线程2: CAS 失败！真正的ABA问题被检测到！值相同({})但版本号从{}变为{}", 
+                                actual.value, current.version, actual.version);
+                    } else if actual.value != current.value {
+                        // 值不同 = 正常的值变化
+                        println!("线程2: CAS 失败！值从{}变为{}，版本号从{}变为{} (正常并发竞争)", 
+                                current.value, actual.value, current.version, actual.version);
+                    } else {
+                        // 理论上不应该发生的情况：值相同但版本号没有增加
+                        // 这可能表示代码 bug 或边界情况
+                        println!("线程2: CAS 失败！异常情况！期望值: {}, 版本号: {}, 实际值: {}, 版本号: {} (值相同但版本号未增加)", 
+                                current.value, current.version, actual.value, actual.version);
+                        println!("线程2: 这种情况理论上不应该发生，可能是代码 bug 或边界情况");
+                    }
                 }
             }
         });
@@ -157,11 +171,13 @@ fn main() {
     // 分析结果
     if final_state.value == 100 {
         if final_state.version > initial_state.version {
-            println!("*** 版本号方案检测到ABA问题并成功防止！ ***");
-            println!("虽然值从 {} 变回了 {}，但版本号从 {} 变成了 {}，CAS 操作被正确拒绝", 
+            println!("*** 版本号方案：CAS操作成功！ ***");
+            println!("值从 {} 更新到 {}，版本号从 {} 变为 {}，CAS 操作成功执行", 
                     initial_state.value, final_state.value, initial_state.version, final_state.version);
         } else {
             println!("*** 版本号方案：正常CAS操作成功 ***");
+            println!("值从 {} 更新到 {}，版本号从 {} 变为 {}，CAS 操作成功执行", 
+                    initial_state.value, final_state.value, initial_state.version, final_state.version);
         }
     } else {
         println!("*** 版本号方案成功防止了 ABA 问题！ ***");
@@ -203,13 +219,12 @@ mod tests {
     fn test_aba_prevention_100_times() {
         println!("\n=== 版本号方案 ABA 防护测试（100次）===");
         
-        let mut aba_prevented_count = 0;
         let mut normal_cas_count = 0;
         let mut cas_failed_count = 0;
         
         for test_num in 1..=100 {
             let counter = VersionedAtomicCounter::new(0);
-            let initial_state = counter.load();
+            let _initial_state = counter.load();
             let mut cas_success = false;
             let mut cas_failed = false;
             
@@ -270,12 +285,11 @@ mod tests {
             let final_state = counter.load();
             
             if final_state.value == 100 {
-                if final_state.version > initial_state.version {
-                    aba_prevented_count += 1;
-                } else {
-                    normal_cas_count += 1;
-                }
+                // 值变成100，说明CAS操作成功了
+                normal_cas_count += 1;
             } else {
+                // 值没有变成100，说明CAS操作被拒绝或失败
+                // 这可能是ABA被防止，也可能是其他原因
                 cas_failed_count += 1;
             }
             
@@ -287,22 +301,19 @@ mod tests {
         
         println!("\n=== 测试结果统计 ===");
         println!("总测试次数: 100");
-        println!("ABA 问题被成功防止次数: {} ({:.1}%)", aba_prevented_count, aba_prevented_count as f64 / 100.0 * 100.0);
-        println!("正常 CAS 操作成功次数: {} ({:.1}%)", normal_cas_count, normal_cas_count as f64 / 100.0 * 100.0);
+        println!("CAS 操作成功次数: {} ({:.1}%)", normal_cas_count, normal_cas_count as f64 / 100.0 * 100.0);
         println!("CAS 操作失败次数: {} ({:.1}%)", cas_failed_count, cas_failed_count as f64 / 100.0 * 100.0);
         
-        // 验证版本号方案的有效性
-        assert!(aba_prevented_count + normal_cas_count + cas_failed_count == 100, "测试次数不匹配");
+        // 验证测试次数
+        assert!(normal_cas_count + cas_failed_count == 100, "测试次数不匹配");
         
-        // 版本号方案应该能有效防止ABA问题
-        // 如果值变成100，说明版本号方案没有正确工作
-        let total_aba_cases = aba_prevented_count + normal_cas_count;
-        if total_aba_cases > 0 {
-            println!("\n*** 版本号方案测试结果 ***");
-            println!("在 {} 次可能发生ABA的情况下，版本号方案成功防止了 {} 次", 
-                    total_aba_cases, aba_prevented_count);
-            println!("版本号方案防护率: {:.1}%", 
-                    aba_prevented_count as f64 / total_aba_cases as f64 * 100.0);
+        // 分析结果
+        println!("\n*** 版本号方案测试结果分析 ***");
+        if normal_cas_count > 0 {
+            println!("CAS 操作成功 {} 次，说明在某些情况下版本号检查通过", normal_cas_count);
+        }
+        if cas_failed_count > 0 {
+            println!("CAS 操作失败 {} 次，说明版本号方案有效防止了并发竞争", cas_failed_count);
         }
         
         println!("\n版本号方案测试完成！");
