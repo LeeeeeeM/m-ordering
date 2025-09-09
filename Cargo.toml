@@ -1,0 +1,40 @@
+[package]
+name = "atom-s"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+
+[[bin]]
+name = "app"
+path = "src/main.rs"
+
+[[bin]]
+name = "app2"
+path = "src/main2.rs"
+
+
+[[bin]]
+name = "app3"
+path = "src/main3.rs"
+
+[[bin]]
+name = "app4"
+path = "src/main4.rs"
+
+[[bin]]
+name = "app5"
+path = "src/main5.rs"
+
+[[bin]]
+name = "app6"
+path = "src/main6.rs"
+
+[[bin]]
+name = "app7"
+path = "src/main7.rs"
+
+[[bin]]
+name = "app8"
+path = "src/main8.rs"
