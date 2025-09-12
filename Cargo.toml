@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+rand = "0.8"
 
 
 [[bin]]
@@ -38,3 +39,16 @@ path = "src/main7.rs"
 [[bin]]
 name = "app8"
 path = "src/main8.rs"
+
+[[bin]]
+name = "app9"
+path = "src/main9.rs"
+
+[[bin]]
+name = "app10"
+path = "src/main10.rs"
+
+[[bin]]
+name = "app11"
+path = "src/main11.rs"
+
